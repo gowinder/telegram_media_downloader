@@ -25,8 +25,12 @@ logging.getLogger("pyrogram.client").addFilter(LogFilter())
 logger = logging.getLogger("media_downloader")
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+DOWN_IDR = os.environ.get("TG_DOWN_DIR")
 FAILED_IDS: list = []
 DOWNLOADED_IDS: list = []
+
+
+config = {}
 
 
 def update_config(config: dict):
@@ -113,12 +117,14 @@ async def _get_media_meta(
         file_format: Optional[str] = media_obj.mime_type.split("/")[-1]  # type: ignore
     else:
         file_format = None
+        
+    global config
 
     if _type in ["voice", "video_note"]:
         # pylint: disable = C0209
         file_format = media_obj.mime_type.split("/")[-1]  # type: ignore
         file_name: str = os.path.join(
-            THIS_DIR,
+            config["download_dir"],
             _type,
             "{}_{}.{}".format(
                 _type,
@@ -128,8 +134,9 @@ async def _get_media_meta(
         )
     else:
         file_name = os.path.join(
-            THIS_DIR, _type, getattr(media_obj, "file_name", None) or ""
+            config["download_dir"], _type, getattr(media_obj, "file_name", None) or ""
         )
+    logger.info(f"file_name={file_name}, file_format={file_format}")
     return file_name, file_format
 
 
@@ -311,7 +318,7 @@ async def begin_import(config: dict, pagination_limit: int) -> dict:
     await client.start()
     last_read_message_id: int = config["last_read_message_id"]
     messages_iter = client.get_chat_history(
-        config["chat_id"], offset_id=last_read_message_id, reverse=True
+        config["chat_id"], offset_id=last_read_message_id + 1, reverse=True
     )
     messages_list: list = []
     pagination_count: int = 0
@@ -353,12 +360,21 @@ async def begin_import(config: dict, pagination_limit: int) -> dict:
     return config
 
 
+async def loop_download(config, pagination_limit):
+    while True:
+        updated_config = await begin_import(config, pagination_limit)
+        update_config(updated_config)
+        logger.info("empty message, sleep 10 second to check")
+        await asyncio.sleep(10)
+
+
 def main():
     """Main function of the downloader."""
+    global config
     with open(os.path.join(THIS_DIR, "config.yaml")) as f:
         config = yaml.safe_load(f)
     updated_config = asyncio.get_event_loop().run_until_complete(
-        begin_import(config, pagination_limit=100)
+        loop_download(config, pagination_limit=100)
     )
     if FAILED_IDS:
         logger.info(
