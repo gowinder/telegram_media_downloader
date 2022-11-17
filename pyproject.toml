@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "telegram-media-downloader"
+version = "0.1.0"
+description = ""
+authors = ["destroyer <destroyer@shipyard.xyz>"]
+readme = "README.md"
+packages = [{include = "telegram_media_downloader"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+PyYAML = "6.0"
+rich = "12.5.1"
+TgCrypto = "1.2.3"
+pyrogram = {url = "https://github.com/Dineshkarthik/pyrogram/archive/refs/heads/master.zip"}
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
